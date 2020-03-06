@@ -1,0 +1,113 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+library(tidyverse)
+library(caret)
+library(rpart)
+library(rattle)
+library(RColorBrewer)
+library(e1071)
+```
+```{r}
+library(readxl)
+parole <- read_excel("parole.xlsx")
+View(parole)
+```
+```{r}
+parole = parole %>% mutate(male = as_factor(as.character(male))) %>%
+  mutate(male = fct_recode(male,
+                             "Male" = "1",
+                             "Female" = "0"))
+parole = parole %>% mutate(race = as_factor(as.character(race))) %>%
+  mutate(race = fct_recode(race,
+                           "White" = "1",
+                           "Other" = "2"))
+parole = parole %>% mutate(state = as_factor(as.character(state))) %>%
+  mutate(state = fct_recode(state,
+                            "Other" = "1",
+                            "Kentucky" = "2",
+                            "Louisiana" = "3",
+                            "Virginia" = "4"))
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses))) %>%
+  mutate(multiple.offenses = fct_recode(multiple.offenses,
+                                        "Multiple" = "1",
+                                        "One" = "0"))
+parole = parole %>% mutate(crime = as_factor(as.character(crime))) %>%
+  mutate(crime = fct_recode(crime,
+                            "larceny" = "2",
+                            "drug-related" = "3",
+                            "driving-related" = "4",
+                            "Other" = "1"))
+parole = parole %>% mutate(violator = as_factor(as.character(violator))) %>%
+  mutate(violator = fct_recode(violator,
+                               "Violated" = "1",
+                               "No Violation" = "0"))
+
+```
+```{r}
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE)
+train = parole[train.rows,]
+test = parole[-train.rows,]
+set.seed(12345)
+```
+```{r}
+summary(train)
+```
+```{r}
+tree1 = rpart(violator ~., train, method = "class")
+fancyRpartPlot(tree1)
+```
+I would class the 40 year-old parolee from Louisiana as having No Violations.  I came to this by first selecting no as he is not from Kentucky, Viriginia, or Other and then yes for less than 13 year sentence and yes for under the age of 44.  Which arrives to the No Violation.
+```{r}
+printcp(tree1)
+plotcp(tree1)
+```
+Based on this information the 1st CP value is the best as it is 0.05 and 1 is optimal.
+```{r}
+tree2 = prune(tree1, cp= tree1$cptable[which.min(tree1$cptable[, "xerror"]),"CP"])
+```
+```{r}
+treepred = predict(tree1, train, type = "class")
+head(treepred)
+```
+```{r}
+confusionMatrix(treepred, train$violator,positive = "No Violation")
+```
+```{r}
+library(readxl)
+Blood <- read_excel("Blood.xlsx")
+View(Blood)
+```
+```{r}
+Blood = Blood %>% mutate(DonatedMarch = as_factor(as.character(DonatedMarch))) %>%
+  mutate(DonatedMarch = fct_recode(DonatedMarch,
+                                   "No" = "0",
+                                   "Yes" = "1"))
+```
+```{r}
+train.rows2 = createDataPartition(y = Blood$DonatedMarch, p=0.7, list = FALSE)
+train2 = Blood[train.rows2,]
+test2 = Blood[-train.rows2,]
+set.seed(12345)
+```
+```{r}
+tree3 = rpart(DonatedMarch ~., train2, method = "class")
+fancyRpartPlot(tree3)
+tree5 = rpart(DonatedMarch ~., test2, method = "class")
+fancyRpartPlot(tree5)
+```
+```{r}
+printcp(tree3)
+plotcp(tree3)
+printcp(tree5)
+plotcp(tree5)
+```
+```{r}
+tree4 = prune(tree3, cp= tree3$cptable[which.min(tree3$cptable[, "xerror"]),"CP"])
+tree6 = prune(tree5, cp= tree5$cptable[which.min(tree5$cptable[, "xerror"]),"CP"])
+```
+
+
